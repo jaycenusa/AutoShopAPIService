@@ -21,7 +21,7 @@ Provide a Spring Boot REST API that the frontend can call to read and write inve
 | Validation | Spring Validation |
 | Database | PostgreSQL |
 | Build | Gradle (Kotlin DSL) |
-| Testing | Spring Boot Test, JUnit 5, Mockito |
+| Testing | Spring Boot Test, JUnit 5, Mockito, H2 |
 
 ## Prerequisites
 
@@ -41,20 +41,13 @@ Defaults:
 | Username | `postgres` (override with `DB_USERNAME`) |
 | Password | `postgres` (override with `DB_PASSWORD`) |
 
-Optional environment overrides:
-
 ```bash
 export DB_USERNAME=your_user
 export DB_PASSWORD=your_password
-```
-
-Create the database if it does not exist:
-
-```bash
 createdb autoshop
-# or in psql:
-# CREATE DATABASE autoshop;
 ```
+
+On first startup with an empty database, seed data matching the frontend mocks is loaded (parts, customers, reorders).
 
 ## Build
 
@@ -68,7 +61,31 @@ createdb autoshop
 ./gradlew bootRun
 ```
 
-The app starts with the `local` profile and connects to PostgreSQL using the configuration above. By default Spring Boot listens on port `8080`.
+Listens on port `8080` with the `local` profile.
+
+## API
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/health` | Health check |
+| GET | `/api/parts` | List parts (`category`, `search` query params) |
+| GET | `/api/parts/{id}` | Get part |
+| POST | `/api/parts` | Create part |
+| PUT | `/api/parts/{id}` | Update part |
+| DELETE | `/api/parts/{id}` | Delete part |
+| GET | `/api/customers` | List/search (`q`, `status`) |
+| GET | `/api/customers/stats` | Customer aggregates |
+| GET | `/api/customers/{id}` | Get customer |
+| POST | `/api/customers` | Create customer |
+| PUT | `/api/customers/{id}` | Update customer |
+| DELETE | `/api/customers/{id}` | Delete customer |
+| GET | `/api/reorders` | List reorders (`status`) |
+| GET | `/api/reorders/{id}` | Get reorder |
+| POST | `/api/reorders` | Create reorder |
+| PATCH | `/api/reorders/{id}/status` | Update status (`pending` / `ordered` / `delivered` / `cancelled`) |
+| DELETE | `/api/reorders/{id}` | Delete reorder |
+
+Marking a reorder as `delivered` increments the related part's stock.
 
 ## Tests
 
@@ -76,4 +93,29 @@ The app starts with the `local` profile and connects to PostgreSQL using the con
 ./gradlew test
 ```
 
-Tests also use the `local` profile.
+Tests use the `test` profile with an in-memory H2 database (PostgreSQL not required).
+
+## Deploy to Render (Docker)
+
+This service includes a multi-stage [`Dockerfile`](Dockerfile) and [`render.yaml`](render.yaml) Blueprint.
+
+1. Push this repo to GitHub.
+2. In Render: **New → Blueprint** → select the repo (root = this service folder if monorepo).
+3. Apply the Blueprint: creates Postgres (`autoshop-db`) + Docker web service (`autoshop-api`).
+4. Wait for the deploy; open `https://<service>.onrender.com/api/health`.
+
+Or manually:
+
+1. **New → PostgreSQL**
+2. **New → Web Service** → connect repo → **Docker**
+3. Dockerfile path: `./Dockerfile`
+4. Env vars:
+   - `SPRING_PROFILES_ACTIVE=prod`
+   - `DATABASE_URL` = Internal Database URL from the Postgres instance
+
+Local image smoke test:
+
+```bash
+docker build -t autoshop-api .
+docker run --rm -p 8080:8080 -e PORT=8080 -e SPRING_PROFILES_ACTIVE=prod -e DATABASE_URL=postgres://user:pass@host:5432/autoshop autoshop-api
+```

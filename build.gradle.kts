@@ -26,11 +26,12 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.mockito:mockito-core")
     testImplementation("org.mockito:mockito-junit-jupiter")
+    testRuntimeOnly("com.h2database:h2")
     testCompileOnly("org.projectlombok:lombok")
     testAnnotationProcessor("org.projectlombok:lombok")
 }
 
 tasks.test {
     useJUnitPlatform()
-    systemProperty("spring.profiles.active", "local")
+    systemProperty("spring.profiles.active", "test")
 }
