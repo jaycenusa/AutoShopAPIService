@@ -1,0 +1,23 @@
+databases:
+  - name: autoshop-db
+    plan: free
+    databaseName: autoshop
+    user: autoshop
+
+services:
+  - type: web
+    name: autoshop-api
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: JAVA_OPTS
+        value: "-XX:MaxRAMPercentage=75.0"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: autoshop-db
+          property: connectionString
