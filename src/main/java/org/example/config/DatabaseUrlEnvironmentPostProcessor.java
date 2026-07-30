@@ -11,10 +11,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Maps Render {@code DATABASE_URL} (postgres://...) into Spring datasource properties.
+ * Maps Render {@code DATABASE_URL} ({@code postgres://...}) into Spring datasource properties.
+ * Runs late and inserts properties first so they override empty prod placeholders.
  */
-@Order(Ordered.HIGHEST_PRECEDENCE)
+@Order(Ordered.LOWEST_PRECEDENCE)
 public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProcessor {
+
+    static final String PROPERTY_SOURCE_NAME = "renderDatabaseUrl";
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
@@ -23,15 +26,10 @@ public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProce
             return;
         }
 
-        String existingJdbcUrl = environment.getProperty("spring.datasource.url");
-        if (existingJdbcUrl != null && existingJdbcUrl.startsWith("jdbc:")) {
-            return;
-        }
-
-        DatabaseUrlParser.ParsedDatabaseUrl parsed = DatabaseUrlParser.parse(databaseUrl);
+        DatabaseUrlParser.ParsedDatabaseUrl parsed = DatabaseUrlParser.parse(databaseUrl.trim());
         Map<String, Object> properties = new HashMap<>();
         properties.put("spring.datasource.url", parsed.jdbcUrl());
-        if (parsed.username() != null) {
+        if (parsed.username() != null && !parsed.username().isBlank()) {
             properties.put("spring.datasource.username", parsed.username());
         }
         if (parsed.password() != null) {
@@ -39,6 +37,11 @@ public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProce
         }
         properties.put("spring.datasource.driver-class-name", "org.postgresql.Driver");
 
-        environment.getPropertySources().addFirst(new MapPropertySource("renderDatabaseUrl", properties));
+        MapPropertySource source = new MapPropertySource(PROPERTY_SOURCE_NAME, properties);
+        if (environment.getPropertySources().contains(PROPERTY_SOURCE_NAME)) {
+            environment.getPropertySources().replace(PROPERTY_SOURCE_NAME, source);
+        } else {
+            environment.getPropertySources().addFirst(source);
+        }
     }
 }

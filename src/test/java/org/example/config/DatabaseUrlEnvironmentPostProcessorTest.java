@@ -29,15 +29,15 @@ class DatabaseUrlEnvironmentPostProcessorTest {
     }
 
     @Test
-    void doesNotOverrideExistingJdbcUrl() {
+    void overridesEmptyDatasourceUrlPlaceholder() {
         MockEnvironment environment = new MockEnvironment();
+        environment.setProperty("spring.datasource.url", "");
         environment.setProperty("DATABASE_URL", "postgres://autoshop:s3cret@host:5432/autoshop");
-        environment.setProperty("spring.datasource.url", "jdbc:postgresql://localhost:5432/autoshop");
 
         processor.postProcessEnvironment(environment, new SpringApplication());
 
         assertThat(environment.getProperty("spring.datasource.url"))
-                .isEqualTo("jdbc:postgresql://localhost:5432/autoshop");
+                .isEqualTo("jdbc:postgresql://host:5432/autoshop");
     }
 
     @Test
