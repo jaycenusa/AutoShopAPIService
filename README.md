@@ -87,6 +87,15 @@ Listens on port `8080` with the `local` profile.
 
 Marking a reorder as `delivered` increments the related part's stock.
 
+## Swagger UI
+
+Interactive API docs (DELETE operations are omitted from the published spec):
+
+| Resource | URL |
+| --- | --- |
+| Swagger UI | https://autoshopapiservice.onrender.com/swagger-ui.html |
+| OpenAPI JSON | https://autoshopapiservice.onrender.com/v3/api-docs |
+
 ## Tests
 
 ```bash
@@ -95,27 +104,32 @@ Marking a reorder as `delivered` increments the related part's stock.
 
 Tests use the `test` profile with an in-memory H2 database (PostgreSQL not required).
 
-## Deploy to Render (Docker)
+## Container Deployment
 
-This service includes a multi-stage [`Dockerfile`](Dockerfile) and [`render.yaml`](render.yaml) Blueprint.
+This service ships with a multi-stage [`Dockerfile`](Dockerfile) that builds a runnable JAR and runs it on the `prod` profile.
 
-1. Push this repo to GitHub.
-2. In Render: **New → Blueprint** → select the repo (root = this service folder if monorepo).
-3. Apply the Blueprint: creates Postgres (`autoshop-db`) + Docker web service (`autoshop-api`).
-4. Wait for the deploy; open `https://<service>.onrender.com/api/health`.
-
-Or manually:
-
-1. **New → PostgreSQL**
-2. **New → Web Service** → connect repo → **Docker**
-3. Dockerfile path: `./Dockerfile`
-4. Env vars:
-   - `SPRING_PROFILES_ACTIVE=prod`
-   - `DATABASE_URL` = Internal Database URL from the Postgres instance
-
-Local image smoke test:
+### Build the image
 
 ```bash
 docker build -t autoshop-api .
-docker run --rm -p 8080:8080 -e PORT=8080 -e SPRING_PROFILES_ACTIVE=prod -e DATABASE_URL=postgres://user:pass@host:5432/autoshop autoshop-api
+```
+
+### Run the container
+
+Provide a PostgreSQL connection via `DATABASE_URL` (`postgres://` or `postgresql://`). The app maps that URL into Spring datasource settings at startup.
+
+```bash
+docker run --rm -p 8080:8080 \
+  -e PORT=8080 \
+  -e SPRING_PROFILES_ACTIVE=prod \
+  -e DATABASE_URL=postgres://user:pass@host:5432/autoshop \
+  autoshop-api
+```
+
+If Postgres is also running in Docker on the same machine, use the container/service hostname (or `host.docker.internal` on Docker Desktop) instead of `localhost`.
+
+### Verify
+
+```bash
+curl https://autoshopapiservice.onrender.com/api/health
 ```
